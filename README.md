@@ -2,7 +2,7 @@
 
 **Before the January 2025 Eaton and Palisades fires, insurers were declining to renew Los Angeles home policies. Did those decisions match where 11,754 homes burned?**
 
-[![Launch the app](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://corinnebish.github.io/la-fire-insurer-foresight/)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-2ea44f?style=for-the-badge)](https://corinnebish.github.io/la-fire-insurer-foresight/)
 
 ### 👉 [**Open the live project**](https://corinnebish.github.io/la-fire-insurer-foresight/): no download or setup needed
 
