@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Insurers and the LA Fires</title>
+<meta name="description" content="Did insurers predict where the January 2025 Los Angeles fires would destroy homes? An interactive look at insurance non-renewals for every LA County ZIP code.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#efeae3; --bg2:#e6e0d7; --card:#ffffff; --ink:#151515; --mute:#77716a; --line:rgba(21,21,21,.1);
+  --fire:#ff5a1f; --violet:#5b3fff; --dot:#bdb5aa;
+  --display:'Anton',Impact,sans-serif; --sans:'Inter',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+  --pad:clamp(16px,4vw,56px); --radius:22px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:linear-gradient(180deg,#fbe4d3 0%,#f6e9e0 45%,#efe6f3 100%) fixed;color:var(--ink);font-family:var(--sans);line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+.mono{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+h1,h2{font-family:var(--display);font-weight:400;text-transform:uppercase;line-height:.9}
+
+/* faint grid, like a design canvas */
+.grid-bg{position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:120px 120px;mask-image:radial-gradient(ellipse at center,#000 30%,transparent 80%);-webkit-mask-image:radial-gradient(ellipse at center,#000 30%,transparent 80%);opacity:.6}
+
+/* top bar + floating section nav */
+header.top{position:fixed;inset:0 0 auto 0;z-index:30;display:flex;justify-content:space-between;align-items:center;padding:18px var(--pad);pointer-events:none;transition:background .3s}
+header.top.solid{background:rgba(248,236,228,.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.pillnav{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:30;display:flex;gap:4px;padding:5px;background:var(--ink);border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.pillnav a{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#cfc9c1;text-decoration:none;padding:9px 16px;border-radius:999px;transition:all .2s;white-space:nowrap}
+.pillnav a.on,.pillnav a:hover{background:#fff;color:var(--ink)}
+
+/* ---------- 1. question ---------- */
+.hero{position:relative;height:100vh;overflow:hidden}
+.sky{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.sky i{position:absolute;border-radius:50%;filter:blur(70px);opacity:.75;animation:drift 22s ease-in-out infinite alternate}
+.sky .b1{width:46vw;height:46vw;left:-10vw;top:-14vw;background:#ffb58c}
+.sky .b2{width:40vw;height:40vw;right:-8vw;top:-6vw;background:#d9c8ff;animation-duration:26s}
+.sky .b3{width:52vw;height:30vw;left:24vw;bottom:-16vw;background:#ffc59e;animation-duration:30s}
+.sky .b4{width:26vw;height:26vw;left:8vw;bottom:4vw;background:#ffd9e6;animation-duration:19s}
+@keyframes drift{to{transform:translate(4vw,3vw) scale(1.12)}}
+body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.18;mix-blend-mode:multiply;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E")}
+.hero-title{position:absolute;z-index:4;left:0;right:0;top:calc(64px + 2vh);text-align:center;padding:0 var(--pad)}
+.hero-title .mono{color:var(--mute)}
+.hero-title h1{font-size:clamp(38px,min(7.4vw,9.5vh),140px);margin-top:10px}
+.intro-p{max-width:600px;margin:16px auto 0;font-size:clamp(14px,1.25vw,17px);color:#3c3934}
+.hint{margin-top:8px;font-size:clamp(13px,1.1vw,15px);color:var(--mute)}
+#island,#tags{position:absolute;left:0;right:0;top:50%;height:60vh}
+#island{z-index:2}
+#island canvas{display:block;cursor:grab;touch-action:pan-y}
+#tags{z-index:3;pointer-events:none;overflow:hidden}
+.tag{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center}
+.tag .pill{background:#fff;border-radius:999px;padding:6px 12px;box-shadow:0 6px 18px rgba(0,0,0,.12);white-space:nowrap;font-size:13px;font-weight:600}
+.tag .pill span{font-weight:400;color:var(--mute);margin-left:6px}
+.tag::after{content:"";width:2px;height:var(--stem,26px);background:var(--ink);opacity:.5}
+.hero-foot{position:absolute;z-index:4;left:0;right:0;bottom:84px;display:flex;justify-content:space-between;align-items:flex-end;gap:24px;padding:0 var(--pad);pointer-events:none}
+.hero-foot p{max-width:420px;font-size:15px;color:#3c3934}
+.hero-foot .mono{color:var(--mute);text-align:right}
+
+/* ---------- shared section ---------- */
+section.block{position:relative;z-index:1;padding:clamp(48px,7vh,80px) var(--pad) clamp(12px,2vh,24px)}
+#explore{padding-top:clamp(20px,3vh,36px)}
+.wrap{max-width:1320px;margin:0 auto}
+.kicker{color:var(--mute);margin-bottom:14px}
+.kicker b{color:var(--fire);font-weight:500;margin-right:10px}
+.block h2{font-size:clamp(44px,6.5vw,104px)}
+.lede{max-width:640px;font-size:17px;color:#3c3934;margin-top:18px}
+.card{background:var(--card);border-radius:var(--radius);padding:clamp(18px,2.2vw,28px);box-shadow:0 1px 0 rgba(0,0,0,.04),0 18px 40px -24px rgba(40,30,20,.25)}
+.card h3{font-size:16px;font-weight:600;line-height:1.3}
+.card .sub{font-size:13px;color:var(--mute);margin-top:4px}
+
+/* ---------- 2. explore ---------- */
+.explore{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(0,1fr);gap:18px;margin-top:44px}
+.card.wide{grid-column:1/-1}
+.card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.seg{display:inline-flex;background:var(--bg);border-radius:999px;padding:4px}
+.seg button{all:unset;cursor:pointer;font-size:12.5px;font-weight:500;padding:7px 12px;border-radius:999px;color:var(--mute)}
+.seg button.on{background:var(--ink);color:#fff}
+svg text{font-family:var(--mono);font-size:10.5px;fill:var(--mute)}
+.axis path,.axis line{stroke:var(--line)}
+.gridlines line{stroke:rgba(0,0,0,.06)}
+.ax-title{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase}
+.legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;font-size:12.5px;color:var(--mute)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+
+/* detail panel */
+.search{position:relative;margin-bottom:16px}
+.search input{width:100%;font:inherit;font-size:14px;padding:11px 14px 11px 38px;border-radius:12px;border:1px solid var(--line);background:var(--bg);outline:none}
+.search input:focus{border-color:var(--ink);background:#fff}
+.search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%)}
+.results{position:absolute;left:0;right:0;top:calc(100% + 6px);background:#fff;border-radius:12px;box-shadow:0 18px 40px -12px rgba(0,0,0,.25);z-index:5;max-height:260px;overflow:auto;display:none}
+.results.open{display:block}
+.results button{all:unset;display:flex;justify-content:space-between;width:100%;box-sizing:border-box;padding:10px 14px;font-size:13.5px;cursor:pointer}
+.results button:hover{background:var(--bg)}
+.results button span{color:var(--mute);font-family:var(--mono);font-size:11px}
+.d-name{font-family:var(--display);text-transform:uppercase;font-size:clamp(30px,2.6vw,40px);line-height:1}
+.d-zip{color:var(--mute);margin-top:6px}
+.d-big{display:flex;align-items:baseline;gap:10px;margin:16px 0 4px}
+.d-big b{font-family:var(--display);font-weight:400;font-size:52px;line-height:1}
+.d-big span{font-size:13px;color:var(--mute)}
+.rows{margin-top:10px;border-top:1px solid var(--line)}
+.rows div{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.rows div span{color:var(--mute)}
+.rows div b{font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+.badge{display:inline-block;font-size:11px;font-weight:600;padding:3px 8px;border-radius:999px;margin-left:6px}
+.badge.hot{background:#ffe1d6;color:#c2410c}.badge.cool{background:#ece9ff;color:#4930d9}
+
+/* ---------- 3. answer ---------- */
+.answer h2 em{font-style:normal;color:var(--fire)}
+.proof{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:44px}
+.proof .num{font-family:var(--display);font-size:clamp(64px,7vw,110px);line-height:1;margin:6px 0 10px}
+.proof .num.fire{color:var(--fire)}.proof .num.violet{color:var(--violet)}
+.proof p{font-size:15px;color:#3c3934}
+.conclusion{margin-top:18px;background:var(--ink);color:#f3efe9}
+.conclusion p{font-size:clamp(17px,1.5vw,20px);max-width:900px}
+.conclusion p+p{margin-top:12px;color:#b9b2a8;font-size:15px}
+details.about{margin-top:18px}
+details.about summary{cursor:pointer;list-style:none;font-weight:600;font-size:14px}
+details.about summary::after{content:"  +";color:var(--fire)}
+details.about[open] summary::after{content:"  −"}
+details.about ul{margin:14px 0 0 18px;display:grid;gap:6px;font-size:14px;color:#3c3934}
+footer{position:relative;z-index:1;padding:28px var(--pad) 110px;color:var(--mute);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+
+/* progress bar, card lift + cursor glow, tinted finding cards, word-by-word title */
+.progress{position:fixed;left:0;top:0;height:3px;width:100%;z-index:40;transform-origin:0 50%;transform:scaleX(0);background:linear-gradient(90deg,#ff5a1f,#ff9a3c,#5b3fff)}
+.card{position:relative;transition:transform .35s cubic-bezier(.2,.7,.2,1),box-shadow .35s}
+.card:hover{transform:translateY(-4px);box-shadow:0 1px 0 rgba(0,0,0,.04),0 26px 50px -24px rgba(40,30,20,.35)}
+.card::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .3s;background:radial-gradient(380px circle at var(--mx,50%) var(--my,50%),rgba(255,140,90,.14),transparent 45%)}
+.card:hover::before{opacity:1}
+.conclusion::before{background:radial-gradient(420px circle at var(--mx,50%) var(--my,50%),rgba(255,140,90,.22),transparent 45%)}
+.proof .card:nth-child(1){background:linear-gradient(160deg,#efeaff 0%,#fff 55%)}
+.proof .card:nth-child(2){background:linear-gradient(160deg,#ffe7dc 0%,#fff 55%)}
+.proof .card:nth-child(3){background:linear-gradient(160deg,#f4efe7 0%,#fff 55%)}
+.w{display:inline-block;overflow:hidden;vertical-align:top;padding-bottom:.04em}
+.w>span{display:inline-block;transform:translateY(105%);animation:rise .9s cubic-bezier(.2,.8,.2,1) forwards;animation-delay:calc(var(--i) * 70ms + .1s)}
+@keyframes rise{to{transform:none}}
+.intro-p,.hint,.hero-title>.mono{animation:fadeUp .9s ease both;animation-delay:.6s}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.pillnav a{position:relative}
+#tip{position:fixed;z-index:50;pointer-events:none;opacity:0;transition:opacity .12s;background:#fff;border-radius:12px;padding:10px 12px;box-shadow:0 14px 34px -10px rgba(0,0,0,.3);font-size:12.5px;min-width:200px}
+#tip b{display:block;font-size:14px;margin-bottom:4px}
+#tip div{display:flex;justify-content:space-between;gap:14px;color:var(--mute)}
+#tip div span:last-child{color:var(--ink);font-weight:600}
+
+.reveal{opacity:0;transform:translateY(24px);transition:opacity .8s ease,transform .8s ease}
+.reveal.in{opacity:1;transform:none}
+
+@media (max-width:900px){
+  .explore,.proof{grid-template-columns:1fr}
+  header.top .mono:last-child{display:none}
+  .pillnav a{padding:8px 10px;font-size:10px;letter-spacing:.08em}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}.reveal{opacity:1;transform:none}.w>span{transform:none}}
+</style>
+</head>
+<body>
+
+<div class="sky" aria-hidden="true"><i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="b4"></i></div>
+
+<div class="progress" aria-hidden="true"></div>
+<header class="top"><span class="mono">LA fires · Insurance data</span><span class="mono" style="color:var(--mute)">Los Angeles County · 2015–2025</span></header>
+<nav class="pillnav" aria-label="Sections"><a href="#question" class="on">01 Question</a><a href="#explore">02 Explore</a><a href="#answer">03 Findings</a></nav>
+
+<!-- 1. QUESTION -->
+<section class="hero" id="question">
+  <div class="hero-title">
+    <div class="mono">Research question</div>
+    <h1>Did insurers predict<br>where LA would burn?</h1>
+    <p class="intro-p">Before the 2025 fires, insurers were declining to renew LA home policies. Did those decisions match where <b id="h-destroyed">11,754</b> homes burned?</p>
+    <p class="hint">Altadena and Pacific Palisades account for <b class="share2">88%</b> of homes destroyed.</p>
+  </div>
+  <div id="island"></div>
+  <div id="tags"></div>
+</section>
+
+<!-- 2. EXPLORE -->
+<section class="block" id="explore">
+  <div class="wrap">
+    <div class="kicker mono reveal"><b>02</b>Explore the data</div>
+    <h2 class="reveal">Non-renewals across<br>LA County ZIP codes</h2>
+    <p class="lede reveal">Non-renewals per 100 home policies, by ZIP code. Select any point, bar or search result for details.</p>
+
+    <div class="explore">
+      <div class="card reveal">
+        <div class="card-head">
+          <div><h3>Increase in non-renewals vs. state fire hazard rating</h3><p class="sub">Each point is a ZIP code. Orange = homes destroyed in 2025.</p></div>
+          <div class="seg" id="ymode"><button data-m="change" class="on">Change, 2015–17 to 2019–21</button><button data-m="d1921">Rate, 2019–21</button></div>
+        </div>
+        <div id="scatter"></div>
+        <div class="legend"><span><i style="background:var(--dot)"></i>ZIP code</span><span><i style="background:var(--fire)"></i>Homes destroyed in 2025</span><span><i style="background:transparent;border:2px solid var(--violet)"></i>Selected</span><span>- - Trend line</span></div>
+      </div>
+
+      <div class="card reveal" id="detail">
+        <div class="search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#77716a" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="q" type="search" placeholder="Search a neighborhood or ZIP" autocomplete="off" aria-label="Search a neighborhood or ZIP code">
+          <div class="results" id="results"></div>
+        </div>
+        <div class="d-name" id="d-name">—</div>
+        <div class="d-zip mono" id="d-zip">—</div>
+        <div class="d-big"><b id="d-destroyed">—</b><span>homes destroyed</span></div>
+        <div class="rows">
+          <div><span>Non-renewals per 100, 2015–17</span><b id="d-1517">—</b></div>
+          <div><span>Non-renewals per 100, 2019–21</span><b id="d-1921">—</b></div>
+          <div><span>Change</span><b id="d-pc">—</b></div>
+          <div><span>Land rated Very High fire hazard</span><b id="d-hz">—</b></div>
+        </div>
+        <p class="sub" style="margin-top:14px"><span style="color:var(--violet);font-weight:600">This ZIP code</span> vs. LA County (dashed), per 100 policies</p>
+        <div id="mini"></div>
+      </div>
+
+      <div class="card wide reveal">
+        <div class="card-head">
+          <div><h3>ZIP codes with the largest increase in non-renewals</h3><p class="sub">Change per 100 policies, 2015–17 to 2019–21.</p></div>
+          <div class="legend" style="margin-top:4px"><span><i style="background:var(--fire);border-radius:3px"></i>Homes destroyed in 2025</span><span><i style="background:#cfc7bc;border-radius:3px"></i>No homes destroyed</span><span><i style="background:#f1eeff;border:1px solid #d9d2ff;border-radius:3px"></i>Selected ZIP code</span></div>
+        </div>
+        <div id="bars"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. ANSWER -->
+<section class="block answer" id="answer">
+  <div class="wrap">
+    <div class="kicker mono reveal"><b>03</b>Findings</div>
+    <h2 class="reveal">Key findings</h2>
+    <p class="lede reveal">These two areas hold <b class="share2">88%</b> of destroyed homes.</p>
+    <div class="proof">
+      <div class="card reveal"><div class="mono" style="color:var(--mute)">Pacific Palisades</div><div class="num violet" id="p-pal">—</div><p>Rise in non-renewals, about 5× the county average. <b id="p-palhz">—</b> of land rated Very High hazard.</p></div>
+      <div class="card reveal"><div class="mono" style="color:var(--mute)">Altadena</div><div class="num fire" id="p-alt">—</div><p>Same as the county average (<b id="p-county">—</b>), despite the largest loss. <b id="p-althz">—</b> of land rated Very High hazard.</p></div>
+      <div class="card reveal"><div class="mono" style="color:var(--mute)">Across all ZIP codes</div><div class="num" id="p-rho">—</div><p>Correlation between non-renewal increases and the state hazard map.</p></div>
+    </div>
+    <div class="card conclusion reveal">
+      <p>Insurers pulled back only where the state's map already showed high risk. They did not anticipate Altadena, the largest loss.</p>
+    </div>
+    <details class="about reveal">
+      <summary>About the data</summary>
+      <ul>
+        <li>California Department of Insurance, home policies by ZIP code, 2015–2023</li>
+        <li>CAL FIRE damage inspections, Eaton and Palisades fires</li>
+        <li>CAL FIRE Fire Hazard Severity Zones, pre-2025</li>
+        <li>277 ZIP codes with 100+ policies a year</li>
+      </ul>
+    </details>
+  </div>
+</section>
+
+<footer class="mono"><span>Corinne Bish · USC Marshall MSBA</span><span>Python · pandas · GeoPandas · three.js · D3</span></footer>
+
+<div id="tip"></div>
+
+<script src="data.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+
+<script>
+/* ================= data + charts ================= */
+const D = window.FIRE_DATA, S = D.stats;
+const byZip = new Map(D.zips.map(z => [z.zip, z]));
+const per100 = v => v == null ? '—' : (v * 100).toFixed(1);
+const ptsTxt = v => v == null ? '—' : (v >= 0 ? '+' : '−') + Math.abs(v * 100).toFixed(1);
+const relChange = (a, b) => { const c = Math.round((+per100(b) / +per100(a) - 1) * 100); return (c >= 0 ? '+' : '−') + Math.abs(c) + '%'; };
+const burned = z => z.destroyed >= 20;
+const tip = document.getElementById('tip');
+function showTip(e, html) { tip.innerHTML = html; tip.style.opacity = 1; tip.style.left = Math.min(e.clientX + 16, innerWidth - 230) + 'px'; tip.style.top = (e.clientY + 16) + 'px'; }
+function hideTip() { tip.style.opacity = 0; }
+const tipHtml = z => `<b>${z.name} · ${z.zip}</b><div><span>Homes destroyed</span><span>${z.destroyed.toLocaleString()}</span></div>
+  <div><span>Non-renewals per 100, 2015–17</span><span>${per100(z.d1517)}</span></div><div><span>Non-renewals per 100, 2019–21</span><span>${per100(z.d1921)}</span></div>
+  <div><span>Very High hazard land</span><span>${Math.round(z.hazard * 100)}%</span></div>`;
+
+// headline numbers
+const P = byZip.get('90272'), A = byZip.get('91001');
+document.getElementById('h-destroyed').textContent = S.destroyed.toLocaleString();
+const share2 = Math.round((byZip.get('91001').destroyed + byZip.get('90272').destroyed) / S.destroyed * 100) + '%';
+document.querySelectorAll('.share2').forEach(e => e.textContent = share2);
+document.getElementById('p-pal').textContent = relChange(P.d1517, P.d1921);
+document.getElementById('p-alt').textContent = relChange(A.d1517, A.d1921);
+document.getElementById('p-county').textContent = relChange(S.county1517, S.county1921);
+document.getElementById('p-palhz').textContent = Math.round(P.hazard * 100) + '%';
+document.getElementById('p-althz').textContent = Math.round(A.hazard * 100) + '%';
+document.getElementById('p-rho').textContent = S.rho.toFixed(2);
+
+const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let selected = '91001', ymode = 'change', scatterSeen = false, barsSeen = false;
+
+/* ---- scatter ---- */
+function drawScatter(mode) { // mode: 'grow' (first view), 'glide' (switching views), or nothing
+  const el = document.getElementById('scatter');
+  const prev = new Map(); d3.select(el).selectAll('circle').each(function (z) { prev.set(z.zip, +this.getAttribute('cy')); });
+  el.innerHTML = '';
+  const pts = D.zips.filter(z => z.hazard != null && z[ymode] != null);
+  const W = el.clientWidth, H = Math.max(340, Math.min(480, W * .62)), m = { t: 26, r: 16, b: 46, l: 46 };
+  const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('width', '100%');
+  const x = d3.scaleLinear().domain([0, 1]).range([m.l, W - m.r]);
+  const yv = z => z[ymode] * 100;
+  const y = d3.scaleLinear().domain(d3.extent(pts, yv)).nice().range([H - m.b, m.t]);
+  const r = d3.scaleSqrt().domain([0, 6000]).range([4, 30]);
+  svg.append('g').attr('class', 'gridlines').selectAll('line').data(y.ticks(6)).join('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y).attr('y2', y);
+  svg.append('g').attr('class', 'axis').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(5).tickFormat(d3.format('.0%')).tickSize(0).tickPadding(10)).select('.domain').remove();
+  svg.append('g').attr('class', 'axis').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(6).tickFormat(d => ymode === 'change' && d > 0 ? '+' + d : d).tickSize(0).tickPadding(8)).select('.domain').remove();
+  svg.append('text').attr('class', 'ax-title').attr('x', W - m.r).attr('y', H - 6).attr('text-anchor', 'end').text('Share of land rated Very High fire hazard (state map) →');
+  svg.append('text').attr('class', 'ax-title').attr('x', m.l).attr('y', 12).text(ymode === 'change' ? '↑ Change in non-renewals per 100 policies' : '↑ Non-renewals per 100 policies, 2019–21');
+  // trend line (least squares)
+  const xs = pts.map(z => z.hazard), ys = pts.map(yv), mx = d3.mean(xs), my = d3.mean(ys);
+  const slope = d3.sum(xs, (v, i) => (v - mx) * (ys[i] - my)) / d3.sum(xs, v => (v - mx) ** 2), icpt = my - slope * mx;
+  const trend = svg.append('line').attr('x1', x(0)).attr('y1', y(icpt)).attr('x2', x(1)).attr('y2', y(icpt + slope)).attr('stroke', '#151515').attr('stroke-width', 1.5).attr('stroke-dasharray', '5 5').attr('opacity', .55);
+  if (mode && !calm) trend.attr('x2', x(0)).attr('y2', y(icpt)).transition().delay(mode === 'grow' ? 600 : 200).duration(900).attr('x2', x(1)).attr('y2', y(icpt + slope));
+  const order = [...pts].sort((a, b) => burned(a) - burned(b) || b.destroyed - a.destroyed);
+  const rr = z => burned(z) ? r(z.destroyed) : 4;
+  const dots = svg.append('g').selectAll('circle').data(order).join('circle')
+    .attr('cx', z => x(z.hazard)).attr('cy', z => y(yv(z))).attr('r', rr)
+    .attr('fill', z => burned(z) ? 'rgba(255,90,31,.78)' : 'rgba(150,140,128,.45)')
+    .attr('stroke', z => z.zip === selected ? '#5b3fff' : burned(z) ? '#fff' : 'none').attr('stroke-width', z => z.zip === selected ? 3 : 1.5)
+    .style('cursor', 'pointer')
+    .on('pointermove', (e, z) => showTip(e, tipHtml(z))).on('pointerleave', hideTip).on('click', (e, z) => select(z.zip));
+  if (mode === 'grow' && !calm) dots.attr('r', 0).transition().delay((_, i) => i * 3).duration(700).ease(d3.easeBackOut).attr('r', rr);
+  if (mode === 'glide' && !calm) dots.attr('cy', z => prev.has(z.zip) ? prev.get(z.zip) : y(yv(z))).transition().duration(800).ease(d3.easeCubicInOut).attr('cy', z => y(yv(z)));
+  const labelAt = (z, color, weight) => {
+    const rad = burned(z) ? r(z.destroyed) : 4, cy = y(yv(z)), above = cy - rad - 10 > m.t + 12;
+    const tx = Math.min(W - m.r - 40, Math.max(m.l + 40, x(z.hazard)));
+    svg.append('text').attr('x', tx).attr('y', above ? cy - rad - 8 : cy + rad + 16).attr('text-anchor', 'middle')
+      .style('font-family', 'Inter').style('font-size', '13px').style('font-weight', weight).style('fill', color)
+      .style('paint-order', 'stroke').style('stroke', '#fff').style('stroke-width', '4px').style('stroke-linejoin', 'round').text(z.name);
+  };
+  ['90272', '91001'].filter(k => k !== selected).forEach(k => labelAt(byZip.get(k), '#151515', 500));
+  const s = byZip.get(selected); if (s && s[ymode] != null) labelAt(s, '#5b3fff', 700);
+}
+
+/* ---- bars: biggest increases ---- */
+function drawBars(grow) {
+  const el = document.getElementById('bars'); el.innerHTML = '';
+  const ranked = D.zips.filter(z => z.change != null).sort((a, b) => b.change - a.change);
+  const N = 12, top = ranked.slice(0, N);
+  const extraIdx = [...new Set(['90272', '91001', selected])].map(k => ranked.findIndex(z => z.zip === k)).filter(i => i >= N).sort((a, b) => a - b);
+  const rows = top.map((z, i) => ({ z, rank: i + 1 }));
+  extraIdx.forEach(i => rows.push({ z: ranked[i], rank: i + 1, gap: true }));
+  const W = el.clientWidth, rowH = 30, labW = Math.min(250, W * .42), H = rows.length * rowH + extraIdx.length * 22 + 24;
+  const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('width', '100%');
+  const x = d3.scaleLinear().domain([0, d3.max(top, z => z.change * 100)]).range([labW, W - 100]);
+  let yy = 14, last = N;
+  rows.forEach(({ z, rank, gap }) => {
+    if (gap) { svg.append('text').attr('x', labW).attr('y', yy + 6).text(`… ${rank - last - 1} more ZIP codes …`); yy += 22; }
+    last = rank;
+    const g = svg.append('g').attr('transform', `translate(0,${yy})`).style('cursor', 'pointer')
+      .on('click', () => select(z.zip)).on('pointermove', e => showTip(e, tipHtml(z))).on('pointerleave', hideTip);
+    g.append('rect').attr('x', 0).attr('y', -4).attr('width', W).attr('height', rowH - 2).attr('fill', z.zip === selected ? '#f1eeff' : 'transparent').attr('rx', 8);
+    g.append('text').attr('x', 8).attr('y', 15).style('font-family', 'Inter').style('font-size', '13px').style('font-weight', z.zip === selected ? 700 : 500).style('fill', '#151515').text(`${rank}. ${z.name}`);
+    g.append('text').attr('x', labW - 10).attr('y', 15).attr('text-anchor', 'end').text(z.zip);
+    const end = x(Math.max(0, z.change * 100));
+    const bar = g.append('rect').attr('x', labW).attr('y', 4).attr('height', 14).attr('rx', 7).attr('width', Math.max(3, end - labW)).attr('fill', burned(z) ? '#ff5a1f' : '#cfc7bc');
+    if (grow && !calm) bar.attr('width', 0).transition().delay(rank > N ? 900 : (rank - 1) * 60).duration(800).ease(d3.easeCubicOut).attr('width', Math.max(3, end - labW));
+    g.append('text').attr('x', Math.max(labW + 3, end) + 8).attr('y', 15).style('fill', '#151515').text(ptsTxt(z.change));
+    yy += rowH;
+  });
+}
+
+/* ---- detail + mini line chart ---- */
+function drawMini(z) {
+  const el = document.getElementById('mini'); el.innerHTML = '';
+  const W = el.clientWidth, H = 150, m = { t: 12, r: 12, b: 24, l: 30 };
+  const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('width', '100%');
+  const x = d3.scalePoint().domain(D.years).range([m.l, W - m.r]);
+  const all = z.series.concat(D.county).map(v => v * 100);
+  const y = d3.scaleLinear().domain([0, Math.max(4, d3.max(all) * 1.1)]).nice().range([H - m.b, m.t]);
+  svg.append('g').attr('class', 'gridlines').selectAll('line').data(y.ticks(4)).join('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y).attr('y2', y);
+  svg.append('g').attr('class', 'axis').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickValues(D.years.filter((_, i) => i % 2 === 0)).tickSize(0).tickPadding(8)).select('.domain').remove();
+  svg.append('g').attr('class', 'axis').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4).tickSize(0).tickPadding(6)).select('.domain').remove();
+  const line = d3.line().x((_, i) => x(D.years[i])).y(v => y(v * 100)).curve(d3.curveMonotoneX);
+  svg.append('path').attr('d', line(D.county)).attr('fill', 'none').attr('stroke', '#151515').attr('stroke-width', 1.5).attr('stroke-dasharray', '4 4');
+  const path = svg.append('path').attr('d', line(z.series)).attr('fill', 'none').attr('stroke', '#5b3fff').attr('stroke-width', 3);
+  const pts = svg.selectAll(null).data(z.series).join('circle').attr('cx', (_, i) => x(D.years[i])).attr('cy', v => y(v * 100)).attr('r', 3.5).attr('fill', '#5b3fff');
+  if (!calm) {
+    const L = path.node().getTotalLength();
+    path.attr('stroke-dasharray', `${L} ${L}`).attr('stroke-dashoffset', L).transition().duration(900).ease(d3.easeCubicOut).attr('stroke-dashoffset', 0);
+    pts.attr('r', 0).transition().delay((_, i) => 120 * i).duration(300).attr('r', 3.5);
+  }
+}
+function countUp(el, text, ms = 1100) {
+  const m = String(text).match(/^([^0-9]*)([0-9][0-9,]*\.?[0-9]*)(.*)$/);
+  if (!m || calm) { el.textContent = text; return; }
+  const [, pre, num, post] = m, dec = (num.split('.')[1] || '').length, target = parseFloat(num.replace(/,/g, '')), t0 = performance.now();
+  (function step(t) {
+    const k = Math.min(1, (t - t0) / ms), v = target * (1 - Math.pow(1 - k, 3));
+    el.textContent = pre + (dec ? v.toFixed(dec) : Math.round(v).toLocaleString()) + post;
+    if (k < 1) requestAnimationFrame(step); else el.textContent = text;
+  })(t0);
+}
+function select(zip) {
+  const z = byZip.get(zip); if (!z) return;
+  selected = zip;
+  document.getElementById('d-name').textContent = z.name;
+  document.getElementById('d-zip').textContent = 'ZIP ' + z.zip + (burned(z) ? ' · homes destroyed in 2025' : '');
+  countUp(document.getElementById('d-destroyed'), z.destroyed.toLocaleString(), 700);
+  document.getElementById('d-1517').textContent = per100(z.d1517);
+  document.getElementById('d-1921').textContent = per100(z.d1921);
+  const top10 = z.pctChange >= 90;
+  document.getElementById('d-pc').innerHTML = z.pctChange == null ? '—' : `${ptsTxt(z.change)}<span class="badge ${top10 ? 'hot' : 'cool'}">${top10 ? 'Top 10% of LA ZIP codes' : 'Higher than ' + z.pctChange + '% of LA ZIP codes'}</span>`;
+  document.getElementById('d-hz').textContent = Math.round(z.hazard * 100) + '%';
+  drawMini(z); drawScatter(); drawBars();
+  document.getElementById('detail').animate([{ transform: 'scale(.985)' }, { transform: 'none' }], { duration: 300, easing: 'ease-out' });
+}
+
+/* ---- search ---- */
+const q = document.getElementById('q'), res = document.getElementById('results');
+const list = [...D.zips].sort((a, b) => b.destroyed - a.destroyed || a.name.localeCompare(b.name));
+q.addEventListener('input', () => {
+  const s = q.value.trim().toLowerCase();
+  if (!s) { res.classList.remove('open'); return; }
+  const hits = list.filter(z => z.name.toLowerCase().includes(s) || z.zip.startsWith(s)).slice(0, 8);
+  res.innerHTML = hits.length ? hits.map(z => `<button data-z="${z.zip}">${z.name}<span>${z.zip}</span></button>`).join('') : '<button disabled>No match</button>';
+  res.classList.add('open');
+});
+res.addEventListener('click', e => { const b = e.target.closest('button[data-z]'); if (!b) return; select(b.dataset.z); q.value = ''; res.classList.remove('open'); });
+q.addEventListener('keydown', e => { if (e.key === 'Enter') { const b = res.querySelector('button[data-z]'); if (b) b.click(); } if (e.key === 'Escape') res.classList.remove('open'); });
+document.addEventListener('click', e => { if (!e.target.closest('.search')) res.classList.remove('open'); });
+
+document.querySelectorAll('#ymode button').forEach(b => b.addEventListener('click', () => {
+  ymode = b.dataset.m; document.querySelectorAll('#ymode button').forEach(x => x.classList.toggle('on', x === b)); drawScatter('glide');
+}));
+select(selected);
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => select(selected), 150); });
+
+/* ---- reveal + nav highlight ---- */
+const rio = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); rio.unobserve(e.target); } }), { threshold: .12 });
+document.querySelectorAll('.reveal').forEach(el => rio.observe(el));
+const once = (el, fn) => { const o = new IntersectionObserver(es => { if (es[0].isIntersecting) { fn(); o.disconnect(); } }, { threshold: .25 }); o.observe(el); };
+once(document.getElementById('scatter'), () => drawScatter('grow'));
+once(document.getElementById('bars'), () => drawBars(true));
+document.querySelectorAll('.proof .num').forEach(el => { const final = el.textContent; once(el, () => countUp(el, final, 1300)); });
+
+// scroll progress bar
+const bar = document.querySelector('.progress');
+addEventListener('scroll', () => { bar.style.transform = `scaleX(${scrollY / Math.max(1, document.documentElement.scrollHeight - innerHeight)})`; }, { passive: true });
+
+// cursor glow on cards
+document.querySelectorAll('.card').forEach(c => c.addEventListener('pointermove', e => {
+  const r = c.getBoundingClientRect(); c.style.setProperty('--mx', (e.clientX - r.left) + 'px'); c.style.setProperty('--my', (e.clientY - r.top) + 'px');
+}));
+
+// title rises in word by word
+(function () {
+  const h = document.querySelector('.hero-title h1'); let i = 0;
+  h.innerHTML = h.innerHTML.split('<br>').map(line => line.trim().split(' ').map(w => `<span class="w"><span style="--i:${i++}">${w}</span></span>`).join(' ')).join('<br>');
+})();
+window.selectZip = zip => { select(zip); document.getElementById('explore').scrollIntoView({ behavior: 'smooth' }); };
+const topBar = document.querySelector('header.top');
+addEventListener('scroll', () => topBar.classList.toggle('solid', scrollY > innerHeight * .8), { passive: true });
+const navLinks = [...document.querySelectorAll('.pillnav a')];
+const nio = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) navLinks.forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + e.target.id)); }), { rootMargin: '-45% 0px -45% 0px' });
+['question', 'explore', 'answer'].forEach(id => nio.observe(document.getElementById(id)));
+</script>
+
+<script type="module">
+/* ================= floating clay island of the LA basin ================= */
+import * as THREE from 'three';
+const D = window.FIRE_DATA, host = document.getElementById('island'), tagsEl = document.getElementById('tags');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+host.appendChild(renderer.domElement);
+const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(28, 1, 1, 3000);
+
+let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+D.shapes.forEach(z => z.rings.forEach(r => r.forEach(([x, y]) => { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); })));
+const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2, span = Math.max(maxX - minX, maxY - minY), R = span * .56;
+
+const island = new THREE.Group(), floater = new THREE.Group(); floater.add(island); scene.add(floater);
+const clay = (c, rough = .85) => new THREE.MeshStandardMaterial({ color: c, roughness: rough, metalness: 0 });
+
+// water on top, sandy rim, rocky layers underneath like a floating island
+const water = new THREE.Mesh(new THREE.CylinderGeometry(R, R, 2, 96), clay('#8fd0e6', .4)); water.position.y = -1; water.receiveShadow = true; island.add(water);
+const rim = new THREE.Mesh(new THREE.TorusGeometry(R, 1.4, 12, 120), clay('#f1e3c8')); rim.rotation.x = Math.PI / 2; rim.position.y = -.2; island.add(rim);
+let yb = -2;
+[['#c99a6b', 6, 1, .96], ['#a8744a', 10, .96, .7], ['#8a5a38', 16, .7, .32], ['#6f4529', 14, .32, .06]].forEach(([c, hgt, top, bot]) => {
+  const g = new THREE.CylinderGeometry(R * top, R * bot, hgt, 14, 1); g.translate(0, -hgt / 2, 0);
+  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: c, roughness: 1, flatShading: true })); m.position.y = yb; island.add(m); yb -= hgt;
+});
+
+// ZIP code tiles: cream for most of LA, coral where homes burned
+const h = n => 1.6 + Math.sqrt(n) * .3;
+const tiles = [], smokeSrc = [];
+D.shapes.forEach(z => {
+  const burned = z.destroyed >= 20, H = burned ? h(z.destroyed) : .9 + (z.hazard || 0) * 2.2;
+  z.rings.forEach(r => {
+    const pts = r.map(([x, y]) => new THREE.Vector2(x - cx, y - cy));
+    if (pts.some(p => p.length() > R - 2)) return;
+    const geo = new THREE.ExtrudeGeometry(new THREE.Shape(pts), { depth: H, bevelEnabled: true, bevelThickness: .25, bevelSize: .2, bevelSegments: 2 });
+    geo.rotateX(-Math.PI / 2);
+    const t = Math.min(1, z.destroyed / 5000);
+    const mat = burned ? new THREE.MeshStandardMaterial({ color: new THREE.Color('#ffb08a').lerp(new THREE.Color('#ff4a1a'), t), emissive: '#ff3d00', emissiveIntensity: .12 + t * .25, roughness: .6 })
+                       : clay(new THREE.Color('#f4ece0').lerp(new THREE.Color('#d9c3a3'), z.hazard || 0));
+    const m = new THREE.Mesh(geo, mat); m.castShadow = m.receiveShadow = true; m.userData = z; island.add(m); tiles.push(m);
+    if (burned) smokeSrc.push({ x: d3.mean(pts, p => p.x), z: -d3.mean(pts, p => p.y), top: H, w: Math.sqrt(z.destroyed) });
+  });
+});
+D.perimeters.forEach(rs => rs.forEach(r => {
+  const g = new THREE.BufferGeometry().setFromPoints(r.map(([x, y]) => new THREE.Vector3(x - cx, .35, -(y - cy))));
+  island.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: '#c2410c' })));
+}));
+
+// soft smoke puffs rising from burned areas
+const puffTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
+  const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(120,112,105,.55)'); g.addColorStop(1, 'rgba(120,112,105,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+const puffs = [], wsum = d3.sum(smokeSrc, s => s.w);
+function resetPuff(p, initial) {
+  let r = Math.random() * wsum, k = 0; while ((r -= smokeSrc[k].w) > 0) k++;
+  const s = smokeSrc[k]; p.base = new THREE.Vector3(s.x + (Math.random() - .5) * 6, s.top, s.z + (Math.random() - .5) * 6);
+  p.life = initial ? Math.random() : 0; p.speed = .0025 + Math.random() * .003; p.drift = (Math.random() - .5) * 8;
+}
+for (let i = 0; i < 160; i++) {
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: puffTex, transparent: true, depthWrite: false }));
+  island.add(sp); const p = { sp }; resetPuff(p, true); puffs.push(p);
+}
+
+// clouds made of clay spheres
+const clouds = [];
+for (let i = 0; i < 4; i++) {
+  const c = new THREE.Group(), mat = clay('#ffffff', .95);
+  [[0, 0, 0, 5], [5, -1, 1, 4], [-5, -1, -1, 3.6], [2, 2.5, 0, 3.8]].forEach(([x, y, z, rad]) => { const s = new THREE.Mesh(new THREE.SphereGeometry(rad, 20, 16), mat); s.position.set(x, y, z); s.castShadow = true; c.add(s); });
+  c.userData.a = i / 4 * Math.PI * 2 + .6; c.scale.setScalar(.9 + i * .12);
+  floater.add(c); clouds.push(c);
+}
+
+// a clay firefighting helicopter that circles the island
+const heli = new THREE.Group();
+{
+  const red = clay('#e8452c', .6), dark = clay('#2b2b2b', .7), glass = new THREE.MeshStandardMaterial({ color: '#bfe3f2', roughness: .2 });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(2.6, 24, 18), red); body.scale.set(1.5, 1, 1); heli.add(body);
+  const cab = new THREE.Mesh(new THREE.SphereGeometry(1.7, 20, 16), glass); cab.position.set(2.1, .5, 0); heli.add(cab);
+  const tail = new THREE.Mesh(new THREE.CylinderGeometry(.45, .7, 7, 12), red); tail.rotation.z = Math.PI / 2; tail.position.set(-6, .6, 0); heli.add(tail);
+  const fin = new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.2, .35), red); fin.position.set(-9.2, 1.6, 0); heli.add(fin);
+  [-1.4, 1.4].forEach(z => { const sk = new THREE.Mesh(new THREE.CylinderGeometry(.18, .18, 6, 8), dark); sk.rotation.z = Math.PI / 2; sk.position.set(0, -2.7, z); heli.add(sk); });
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(.25, .25, 1.2, 8), dark); mast.position.y = 3.1; heli.add(mast);
+  const rotor = new THREE.Group(); rotor.position.y = 3.7; heli.add(rotor); heli.userData.rotor = rotor;
+  [0, Math.PI / 2].forEach(a => { const b = new THREE.Mesh(new THREE.BoxGeometry(15, .18, .9), dark); b.rotation.y = a; rotor.add(b); });
+  const trotor = new THREE.Mesh(new THREE.BoxGeometry(.2, 3.2, .5), dark); trotor.position.set(-9.4, 1.6, .5); heli.add(trotor); heli.userData.trotor = trotor;
+  const rope = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 5, 6), dark); rope.position.y = -5.2; heli.add(rope);
+  const bucket = new THREE.Mesh(new THREE.CylinderGeometry(1.2, .8, 1.6, 16), clay('#f2a23a', .6)); bucket.position.y = -8.2; heli.add(bucket);
+  heli.scale.setScalar(1.1); heli.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  heli.userData.a = 2.2; floater.add(heli);
+}
+
+// little sailboats on the water (only where no ZIP code shape covers the spot)
+const inside = (x, y, ring) => { let c = false; for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+  const [xi, yi] = ring[i], [xj, yj] = ring[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; };
+const onLand = (x, z) => D.shapes.some(sh => sh.rings.some(r => inside(x + cx, -z + cy, r)));
+
+const boats = [], sailColors = ['#ff6a2b', '#6a4cff', '#1fa39a', '#ff9f1c'], boatLoop = 7;
+for (let k = 0; k < 800 && boats.length < 4; k++) {
+  const a = Math.random() * Math.PI * 2, d = R * (.5 + Math.random() * .38), x = Math.cos(a) * d, z = Math.sin(a) * d;
+  // the whole sailing loop (center ± loop radius, plus a margin) must be open water and inside the rim
+  const path = Array.from({ length: 12 }, (_, i) => [x + Math.cos(i / 12 * Math.PI * 2) * (boatLoop + 4), z + Math.sin(i / 12 * Math.PI * 2) * (boatLoop + 4)]);
+  if (path.some(([px, pz]) => onLand(px, pz) || Math.hypot(px, pz) > R - 4) || onLand(x, z)) continue;
+  if (boats.some(b => Math.hypot(b.userData.cx - x, b.userData.cz - z) < 16)) continue;
+  const b = new THREE.Group();
+  // hull seen from above: flat stern, pointed bow (bow faces +x), extruded upward with rounded edges
+  const hs = new THREE.Shape(); hs.moveTo(-2, -.75); hs.lineTo(.9, -.75); hs.quadraticCurveTo(2.1, -.6, 2.6, 0); hs.quadraticCurveTo(2.1, .6, .9, .75); hs.lineTo(-2, .75); hs.lineTo(-2, -.75);
+  const hg = new THREE.ExtrudeGeometry(hs, { depth: .9, bevelEnabled: true, bevelThickness: .2, bevelSize: .2, bevelSegments: 3 }); hg.rotateX(-Math.PI / 2);
+  const hull = new THREE.Mesh(hg, clay('#fffaf2', .6)); hull.position.y = .1; b.add(hull);
+  const stripe = new THREE.Mesh(new THREE.ExtrudeGeometry(hs, { depth: .18, bevelEnabled: false }).rotateX(-Math.PI / 2), clay('#2f6f9f', .6)); stripe.scale.set(1.04, 1, 1.12); stripe.position.y = .15; b.add(stripe);
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(.09, .09, 4.6, 8), clay('#6b4a2f', .8)); mast.position.set(.2, 3.2, 0); b.add(mast);
+  const ss = new THREE.Shape(); ss.moveTo(0, 0); ss.lineTo(0, 4); ss.lineTo(-2.3, 0); ss.lineTo(0, 0);
+  const sail = new THREE.Mesh(new THREE.ShapeGeometry(ss), new THREE.MeshStandardMaterial({ color: sailColors[boats.length % sailColors.length], roughness: .7, side: THREE.DoubleSide }));
+  sail.position.set(.1, 1.1, 0); b.add(sail);
+  b.userData = { cx: x, cz: z, ang: Math.random() * Math.PI * 2, speed: (.0016 + Math.random() * .0012) * (Math.random() < .5 ? 1 : -1), ph: Math.random() * 6 };
+  b.position.set(x, 0, z); b.scale.setScalar(1.1);
+  b.traverse(o => { if (o.isMesh) o.castShadow = true; }); island.add(b); boats.push(b);
+}
+
+// labels for the two hardest-hit areas
+const TAGS = ['90272', '91001'].map(zip => {
+  const s = D.shapes.find(q => q.zip === zip), big = s.rings.reduce((a, b) => b.length > a.length ? b : a), z = D.zips.find(q => q.zip === zip);
+  const el = document.createElement('div'); el.className = 'tag';
+  el.innerHTML = `<div class="pill">${z.name}<span>${z.destroyed.toLocaleString()} homes destroyed</span></div>`;
+  tagsEl.appendChild(el);
+  return { el, local: new THREE.Vector3(d3.mean(big, q => q[0]) - cx, h(z.destroyed) + 1, -(d3.mean(big, q => q[1]) - cy)) };
+});
+
+// bright, soft light like a sunny diorama
+scene.add(new THREE.HemisphereLight('#ffffff', '#d8c7b0', 1.15));
+const sun = new THREE.DirectionalLight('#fff3e0', 2.1); sun.position.set(-70, 150, 90); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -R * 1.2, right: R * 1.2, top: R * 1.2, bottom: -R * 1.2, near: 10, far: 500 }); sun.shadow.bias = -.0005;
+scene.add(sun);
+
+// size the island area to the space between the title block and the bottom nav,
+// then move the camera so the whole island fills that area and sits centered in it
+const heroEl = document.querySelector('.hero'), titleEl = document.querySelector('.hero-title');
+const fitBox = new THREE.Box3(); [water, rim, ...tiles].forEach(c => fitBox.expandByObject(c)); // fit to the visible top of the island
+const fitSphere = fitBox.getBoundingSphere(new THREE.Sphere());
+const viewDir = new THREE.Vector3(0, .55, .83).normalize();
+function resize() {
+  const top = titleEl.getBoundingClientRect().bottom - heroEl.getBoundingClientRect().top + 6;
+  // the island gets the rest of the screen (at least ~380px on short windows)
+  const areaH = Math.max(380, innerHeight - top - 24);
+  host.style.top = tagsEl.style.top = top + 'px';
+  host.style.height = tagsEl.style.height = areaH + 'px';
+  const w = host.clientWidth, hh = host.clientHeight;
+  renderer.setSize(w, hh); camera.aspect = w / hh; camera.updateProjectionMatrix();
+  const vf = camera.fov * Math.PI / 180, hf = 2 * Math.atan(Math.tan(vf / 2) * camera.aspect);
+  // the island is a tilted disc: R wide on screen, but only about R * sin(tilt) tall (plus the tallest blocks)
+  const sinE = viewDir.y, cosE = Math.sqrt(1 - sinE * sinE), Hmax = fitBox.max.y;
+  const halfW = R * 1.08, halfH = (R * sinE + Hmax * cosE) * 1.1 + 4;
+  const d = Math.max(halfW / Math.tan(hf / 2), halfH / Math.tan(vf / 2));
+  const aim = new THREE.Vector3(0, Hmax * .35 - 3, 0);
+  camera.position.copy(aim).addScaledVector(viewDir, d); camera.lookAt(aim);
+  camera.updateMatrixWorld();
+  // end the opening section just below the island instead of at the bottom of the screen
+  const low = Math.max(...[new THREE.Vector3(0, -2, R), new THREE.Vector3(0, yb, 0)].map(v => (1 - v.project(camera).y) / 2 * hh));
+  heroEl.style.height = Math.round(top + Math.min(hh, low + 28)) + 'px';
+}
+resize(); addEventListener('resize', resize); if (document.fonts) document.fonts.ready.then(resize);
+
+// drag to spin, hover for numbers
+let spin = -.35, drag = null, hovered = null, hoveredMesh = null;
+const cvs = renderer.domElement, tip = document.getElementById('tip'), ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+cvs.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, spin }; tip.style.opacity = 0; });
+// a click (not a drag) on a ZIP block opens its details below
+cvs.addEventListener('pointerup', e => { if (drag && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 5 && hovered && window.selectZip && D.zips.some(q => q.zip === hovered.zip)) window.selectZip(hovered.zip); });
+addEventListener('pointerup', () => drag = null);
+cvs.addEventListener('pointermove', e => {
+  if (drag) { spin = drag.spin + (e.clientX - drag.x) * .008; return; }
+  const r = cvs.getBoundingClientRect();
+  ptr.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+  ray.setFromCamera(ptr, camera);
+  const hit = ray.intersectObjects(tiles)[0]; hovered = hit ? hit.object.userData : null; hoveredMesh = hit ? hit.object : null;
+  cvs.style.cursor = hovered ? 'pointer' : 'grab';
+  const z = hovered && D.zips.find(q => q.zip === hovered.zip);
+  if (!z) { tip.style.opacity = 0; return; }
+  tip.innerHTML = `<b>${z.name} · ${z.zip}</b><div><span>Homes destroyed</span><span>${z.destroyed.toLocaleString()}</span></div>
+    <div><span>Non-renewals per 100, 2015–17</span><span>${(z.d1517 * 100).toFixed(1)}</span></div><div><span>Non-renewals per 100, 2019–21</span><span>${(z.d1921 * 100).toFixed(1)}</span></div>
+    <div style="margin-top:4px;color:#5b3fff">Click for details</div>`;
+  tip.style.opacity = 1; tip.style.left = Math.min(e.clientX + 16, innerWidth - 230) + 'px'; tip.style.top = (e.clientY + 16) + 'px';
+});
+cvs.addEventListener('pointerleave', () => { tip.style.opacity = 0; hovered = null; hoveredMesh = null; });
+
+const still = matchMedia('(prefers-reduced-motion: reduce)').matches, tv = new THREE.Vector3();
+let visible = true; new IntersectionObserver(e => visible = e[0].isIntersecting).observe(host);
+(function loop(t = 0) {
+  requestAnimationFrame(loop);
+  if (!visible) return;
+  if (!still) {
+    if (!hovered && !drag) spin += .0013;
+    floater.position.y = Math.sin(t / 1400) * 1.6;
+    heli.userData.a -= .0022;
+    const ha = heli.userData.a; heli.position.set(Math.cos(ha) * R * .72, 34 + Math.sin(t / 900) * 1.5, Math.sin(ha) * R * .72);
+    heli.rotation.y = -ha + Math.PI; heli.rotation.z = .12;
+    heli.userData.rotor.rotation.y += .5; heli.userData.trotor.rotation.x += .6;
+    // boats sail slowly around their own small loop on open water, facing the way they move
+    boats.forEach(b => { const u = b.userData; u.ang += u.speed;
+      b.position.set(u.cx + Math.cos(u.ang) * boatLoop, Math.sin(t / 700 + u.ph) * .25, u.cz + Math.sin(u.ang) * boatLoop);
+      const vx = -Math.sin(u.ang) * u.speed, vz = Math.cos(u.ang) * u.speed; // direction of travel
+      b.rotation.y = Math.atan2(-vz, vx); b.rotation.x = Math.sin(t / 900 + u.ph) * .05; });
+    clouds.forEach((c, i) => { c.userData.a += .0006; c.position.set(Math.cos(c.userData.a) * R * .95, 26 + i * 4 + Math.sin(t / 1800 + i) * 1.2, Math.sin(c.userData.a) * R * .95); });
+    puffs.forEach(p => {
+      p.life += p.speed; if (p.life > 1) resetPuff(p);
+      p.sp.position.set(p.base.x + p.drift * p.life, p.base.y + p.life * 30, p.base.z);
+      p.sp.scale.setScalar(3 + p.life * 12); p.sp.material.opacity = Math.sin(p.life * Math.PI) * .9;
+    });
+  } else clouds.forEach((c, i) => c.position.set(Math.cos(c.userData.a) * R * .95, 26 + i * 4, Math.sin(c.userData.a) * R * .95));
+  // the hovered ZIP block rises and glows
+  tiles.forEach(m => {
+    const up = m === hoveredMesh, target = up ? 1.6 : 1;
+    if (Math.abs(m.scale.y - target) > .001) m.scale.y += (target - m.scale.y) * .18;
+    if (up !== !!m.userData.lit) { m.userData.lit = up;
+      if (up) { m.userData.e = [m.material.emissive.getHex(), m.material.emissiveIntensity]; m.material.emissive.set('#5b3fff'); m.material.emissiveIntensity = .35; }
+      else if (m.userData.e) { m.material.emissive.setHex(m.userData.e[0]); m.material.emissiveIntensity = m.userData.e[1]; } }
+  });
+  island.rotation.y = spin;
+  floater.updateMatrixWorld();
+  renderer.render(scene, camera);
+  // place labels; if the two would overlap, lift the one that sits lower on screen
+  const pos = TAGS.map(tg => { tv.copy(tg.local).applyMatrix4(island.matrixWorld).project(camera);
+    return { tg, x: (tv.x + 1) / 2 * host.clientWidth, y: (1 - tv.y) / 2 * host.clientHeight, w: tg.el.firstChild.offsetWidth, h: tg.el.firstChild.offsetHeight }; });
+  pos.sort((a, b) => a.y - b.y);
+  pos.forEach((p, i) => {
+    let stem = 26;
+    if (i === 1) { const o = pos[0], top = o.y - o.stem - o.h - 6;
+      while (Math.abs(p.x - o.x) < (p.w + o.w) / 2 + 8 && p.y - stem - p.h < o.y - o.stem + 4 && p.y - stem > top - 4 && stem < 200) stem += 6; }
+    p.stem = stem; p.tg.s = p.tg.s == null ? stem : p.tg.s + (stem - p.tg.s) * .15;
+    p.tg.el.style.setProperty('--stem', p.tg.s + 'px'); // keep labels on screen horizontally
+    p.tg.el.style.left = Math.min(host.clientWidth - p.w / 2 - 8, Math.max(p.w / 2 + 8, p.x)) + 'px';
+    p.tg.el.style.top = p.y + 'px';
+  });
+})();
+</script>
+</body>
+</html>
